@@ -27,6 +27,17 @@ const mp = await get('https://api.steampowered.com/ISteamChartsService/GetMostPl
 const top = mp?.response?.ranks || [];
 for (const r of top) { apps[r.appid] ||= { appid: r.appid, added: jst }; apps[r.appid].mpRank = r.rank; apps[r.appid].mpAt = jst; }
 console.log('most played', top.length);
+// 1b) 追跡するゲームを広げる（1日1回）：SteamSpyの所有者数上位の一覧から、ゲームのIDだけを使う（数値は使わない）
+const meta = read('meta.json', {});
+if (meta.spyAt !== jst) {
+  const PAGES = +(process.env.SPY_PAGES || 2); let add = 0;
+  for (let pg = 0; pg < PAGES; pg++) {
+    if (pg) await sleep(61000); // 「all」は毎分1回まで
+    const j = await get(`https://steamspy.com/api.php?request=all&page=${pg}`);
+    for (const id of Object.keys(j || {})) if (!apps[id]) { apps[id] = { appid: +id, added: jst }; add++; }
+  }
+  meta.spyAt = jst; save('meta.json', meta); console.log('tracked +', add);
+}
 
 // 2) 同時接続数（追跡中の全ゲーム。8並列）
 const ids = Object.keys(apps);

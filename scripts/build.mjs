@@ -26,6 +26,19 @@ function jp(a) {
 const P = (a) => now.players[a.appid] ?? null;
 const days = (a) => Object.entries(peaks[a.appid] || {}).sort((x, y) => (x[0] < y[0] ? -1 : 1));
 const maxPeak = (a) => days(a).reduce((m, [d, v]) => (v > m.v ? { d, v } : m), { d: '', v: 0 });
+// 傾向：直近7日の日別ピークの平均と、その前の7日の平均を比べる（記録が14日分たまってから）
+function trend(a) {
+  const ds = days(a).filter(([d]) => d < today); if (ds.length < 14) return null;
+  const avg = (l) => l.reduce((s, [, v]) => s + v, 0) / l.length, r = avg(ds.slice(-7)) / (avg(ds.slice(-14, -7)) || 1);
+  return { r, label: r >= 1.15 ? '増加' : r <= 0.85 ? '減少' : '横ばい' };
+}
+const lowOf = (a) => { const ph = Object.values(a.priceHist || {}); return ph.length ? Math.min(...ph) : null; };
+const AFF = '5956177e.37ef999b.5956177f.8008c738';
+const raku = (q) => { const u = `https://search.rakuten.co.jp/search/mall/${encodeURIComponent(q)}/`; return `https://hb.afl.rakuten.co.jp/hgc/${AFF}/?pc=${encodeURIComponent(u)}&m=${encodeURIComponent(u)}`; };
+// 推奨スペックのグラフィックボード名（あれば）
+const gpuOf = (a) => { const t = strip(a.req?.rec || a.req?.min || ''); const m = t.match(/(RTX|GTX)\s?-?\s?(\d{3,4})(\s?Ti|\s?SUPER)?|Radeon\s?RX\s?(\d{3,4})(\s?XT)?/i); return m ? m[0].replace(/\s+/g, ' ').replace(/^(rtx|gtx)/i, (x) => x.toUpperCase()).replace(/\brx\b/i, 'RX').trim() : ''; };
+// 今買うなら：推奨が上位クラスなら RTX 4070、それ以外は RTX 4060 を積んだPCを探す
+const pcQuery = (g) => { const n = +((g.match(/\d{3,4}/) || [0])[0]); const hi = /RTX/.test(g) ? n >= 3070 && n < 5000 || n >= 4070 : /RX/.test(g) ? n >= 6800 : false; return `ゲーミングPC ${hi ? 'RTX 4070' : 'RTX 4060'}`; };
 const valid = Object.values(apps).filter((a) => a.name && !a.na && a.type === 'game');
 const byNow = [...valid].filter((a) => P(a) != null).sort((a, b) => P(b) - P(a));
 
@@ -37,7 +50,7 @@ ${index ? '' : '<meta name="robots" content="noindex,follow">'}<meta name="color
 <link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/fonts.css?v=${ver}"><link rel="stylesheet" href="/style.css?v=${ver}">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${SITE.ads}" crossorigin="anonymous"></script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
-</head><body><header class="top"><a class="logo" href="/"><span class="lg-dot"></span>${SITE.name}</a><nav><a href="/ranking/">ランキング</a><a href="/sale/">セール</a><a href="/japanese/">日本語対応</a></nav></header>
+</head><body><header class="top"><a class="logo" href="/"><span class="lg-dot"></span>${SITE.name}</a><nav><a href="/ranking/">ランキング</a><a href="/rising/">急上昇</a><a href="/sale/">セール</a><a href="/japanese/">日本語対応</a></nav></header>
 <main>${body}</main>
 <footer><p>同時接続数・価格・対応言語はSteamの公開データ（Valve Corporation提供）をもとに当サイトが集計しています。当サイトはValve Corporationとは関係ありません。Steam および Steam ロゴは Valve Corporation の商標です。</p><p><a href="/about/">運営者情報</a><a href="/privacy/">プライバシーポリシー</a><a href="${SITE.contact}" target="_blank" rel="noopener">お問い合わせ</a></p><p>© ${today.slice(0, 4)} ${SITE.operator}</p></footer></body></html>`;
 }
@@ -64,15 +77,20 @@ for (const a of valid) {
 <figure class="hero"><img src="${esc(a.header)}" alt="${esc(a.name)}" width="460" height="215"></figure>
 <p class="crumbs"><a href="/">トップ</a> › <a href="/ranking/">ランキング</a></p>
 <h1>${esc(a.name)}<small>同時接続数・セール価格・日本語対応・必要スペック</small></h1>
+<p class="sum">${(() => { const t = trend(a), lw = lowOf(a), parts = [];
+  parts.push(p != null ? `いま${nf(p)}人がプレイ中${t ? `（先週より${t.label}）` : ''}` : '同時接続数は取得中');
+  parts.push(j.voice ? '日本語の字幕・音声あり' : j.ui ? '日本語の字幕あり（音声は英語など）' : '日本語には未対応');
+  if (a.free) parts.push('基本無料'); else if (a.price) parts.push(a.price.off ? `${a.price.off}%オフのセール中${lw != null ? (a.price.now <= lw ? '（当サイトの記録上の最安値）' : `（記録上の最安値は¥${nf(lw)}）`) : ''}` : `定価¥${nf(a.price.now)}`);
+  return esc(parts.join('。')) + '。'; })()}</p>
 <div class="stats"><div class="st big"><span>今プレイ中</span><b>${p != null ? nf(p) : '—'}<i>人</i></b></div><div class="st"><span>今日の最大</span><b>${td ? nf(td) : '—'}<i>人</i></b></div><div class="st"><span>記録上の最大${pk.d ? `（${pk.d.slice(5).replace('-', '/')}）` : ''}</span><b>${pk.v ? nf(pk.v) : '—'}<i>人</i></b></div></div>
 ${chart(a)}
 <section class="box"><h2>価格</h2><p class="price">${priceTxt(a) || '価格情報なし'}</p>${low != null && a.price && low < a.price.now ? `<p class="note">当サイトの記録上の最安値は ¥${nf(low)} です。</p>` : ''}<p><a class="btn" href="https://store.steampowered.com/app/${a.appid}/" target="_blank" rel="noopener">Steamストアで見る</a></p></section>
 <section class="box"><h2>日本語対応</h2><ul class="jpl"><li class="${j.ui ? 'ok' : 'ng'}"><span>画面・字幕</span><b>${j.ui ? '日本語あり' : 'なし'}</b></li><li class="${j.voice ? 'ok' : 'ng'}"><span>音声</span><b>${j.voice ? '日本語あり' : 'なし'}</b></li></ul><p class="note">Steamストアの対応言語の表示にもとづきます。</p></section>
-<section class="box"><h2>必要スペック（Windows）</h2><div class="specs"><div><h3>最低</h3>${specList(a.req?.min)}</div><div><h3>推奨</h3>${specList(a.req?.rec)}</div></div></section>
+<section class="box"><h2>必要スペック（Windows）</h2><div class="specs"><div><h3>最低</h3>${specList(a.req?.min)}</div><div><h3>推奨</h3>${specList(a.req?.rec)}</div></div>${(() => { const g = gpuOf(a); return `<p class="pc"><a class="btn sub" href="${esc(raku(pcQuery(g)))}" rel="sponsored noopener" target="_blank" onclick="window.gtag&&gtag('event','pc_click',{item_id:'${a.appid}'})">${g ? `推奨（${esc(g)}）以上のゲーミングPCを楽天で探す` : 'ゲーミングPCを楽天で探す'}<span class="pr">PR</span></a></p>`; })()}</section>
 <section class="box"><h2>基本情報</h2><ul class="kv"><li><span>ジャンル</span><b>${esc(a.genres.join('・') || '—')}</b></li><li><span>開発</span><b>${esc(a.dev.join('、') || '—')}</b></li><li><span>発売</span><b>${esc(a.pub.join('、') || '—')}</b></li><li><span>発売日</span><b>${esc(a.release || '—')}</b></li></ul></section>
 <p class="note">最終更新：${esc(now.at ? new Date(new Date(now.at).getTime() + 9 * 3600e3).toISOString().slice(0, 16).replace('T', ' ') : today)}（3時間ごとに自動更新）</p>
 </article>`;
-  write(`/game/${a.appid}/`, layout({ title: `${a.name}の同時接続数・セール価格・日本語対応`, desc: `${a.name}の今の同時接続数${p != null ? `（${nf(p)}人）` : ''}、日ごとの推移、Steamでの価格とセール、日本語対応、必要スペックをまとめています。`, path: `/game/${a.appid}/`, body, img: a.header }), days(a).length >= 1);
+  write(`/game/${a.appid}/`, layout({ title: `${a.name}の同時接続数・セール価格・日本語対応`, desc: `${a.name}の今の同時接続数${p != null ? `（${nf(p)}人）` : ''}、日ごとの推移、Steamでの価格とセール、日本語対応、必要スペックをまとめています。`, path: `/game/${a.appid}/`, body, img: a.header }), days(a).length >= 1 && pk.v >= 30);
 }
 
 // トップ
@@ -91,6 +109,12 @@ listPage('/ranking/', 'Steam 同時接続数ランキング', 'Steamの同時接
 listPage('/japanese/', '日本語対応のSteam人気ゲーム', '日本語に対応しているSteamのゲームを、同時接続数が多い順に並べています。', '日本語対応の人気ゲーム', byNow.filter((a) => jp(a).ui).slice(0, 200), (a) => `<em class="n">${nf(P(a))}</em>人がプレイ中 ${jpBadge(a)}`);
 listPage('/sale/', 'Steamセール中の人気ゲーム', 'Steamで今セール中のゲームを、同時接続数が多い順に並べています。割引率と日本円の価格つき。', 'セール中の人気ゲーム', valid.filter((a) => a.price?.off).sort((a, b) => (P(b) || 0) - (P(a) || 0)).slice(0, 200), (a) => `${priceTxt(a)} ${jpBadge(a)}`);
 
+// 人数が伸びているゲーム：前日の最大と、その前の最大3〜7日の平均を比べる（記録が4日たまってから）
+{
+  const rise = valid.map((a) => { const ds = days(a).filter(([d]) => d < today); if (ds.length < 4) return null; const last = ds[ds.length - 1][1], prev = ds.slice(-8, -1).map((x) => x[1]); const base = prev.reduce((s, v) => s + v, 0) / prev.length; return base >= 300 ? { a, r: last / base, last } : null; }).filter(Boolean).sort((x, y) => y.r - x.r).slice(0, 50);
+  if (!rise.length) write('/rising/', layout({ title: 'Steamで人数が伸びているゲーム', desc: '同時接続数が伸びているゲーム', path: '/rising/', index: false, body: `<section class="intro sm"><div class="mosaic">${byNow.slice(0, 6).map((a) => `<a href="/game/${a.appid}/"><img src="${esc(a.header)}" alt="${esc(a.name)}"></a>`).join('')}</div><h1>人数が伸びているゲーム</h1><p>日ごとの記録が4日分たまると、ここに表示されます。</p></section>` }), false);
+  else listPage('/rising/', 'Steamで人数が伸びているゲーム', 'Steamで同時接続数（日ごとの最大）が直近の平均より伸びているゲーム。毎日更新。', '人数が伸びているゲーム', rise.map((x) => x.a), (a) => { const x = rise.find((y) => y.a === a); return `昨日の最大 <em class="n">${nf(x.last)}</em>人（ふだんの${x.r.toFixed(1)}倍）${jpBadge(a)}`; });
+}
 // 固定ページ
 write('/about/', layout({ title: '運営者情報', desc: '運営者情報', path: '/about/', body: `<article class="doc"><h1>運営者情報</h1><p>サイト名：${SITE.name}<br>運営：${SITE.operator}</p><h2>このサイトについて</h2><p>Steamの公開データ（同時接続数・ストア情報）を定期的に取得し、日本語で見やすく集計しています。同時接続数は当サイトが取得した時点の値で、記録は集計を始めた日からたまっていきます。</p><p><a href="${SITE.contact}" target="_blank" rel="noopener">お問い合わせフォーム</a></p></article>` }));
 write('/privacy/', layout({ title: 'プライバシーポリシー', desc: 'プライバシーポリシー', path: '/privacy/', body: `<article class="doc"><h1>プライバシーポリシー</h1><h2>広告について</h2><p>当サイトは第三者配信の広告サービス「Google アドセンス」を利用しています。広告配信事業者は、利用者の興味に応じた広告を表示するためにCookieを使用することがあります。詳しくは<a href="https://policies.google.com/technologies/ads?hl=ja" target="_blank" rel="noopener">Googleのポリシーと規約</a>をご覧ください。</p><h2>アクセス解析について</h2><p>Googleアナリティクスを利用しています。データは匿名で収集され、個人を特定するものではありません。</p><h2>免責事項</h2><p>掲載情報は取得時点のものです。価格・対応言語などの最新情報はSteamストアでご確認ください。</p><p>制定：${today}　${SITE.operator}</p></article>` }));
