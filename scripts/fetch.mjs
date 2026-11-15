@@ -58,7 +58,7 @@ for (const id of Object.keys(peaks)) for (const d of Object.keys(peaks[id])) if 
 // 3) ストア情報：未取得のものと、更新が古いもの（上位から最大 DETAIL_MAX 件）。1.6秒間隔（ストアの制限を守る）
 const MAX = +(process.env.DETAIL_MAX || 300);
 // 未取得（detailAt なし）を先に、次に更新が古い順。取得できなかったもの（na）も detailAt で判定する
-const queue = ids.filter((id) => (apps[id].detailAt || '') < jst).sort((a, b) => ((apps[a].detailAt || '') < (apps[b].detailAt || '') ? -1 : (apps[a].detailAt || '') > (apps[b].detailAt || '') ? 1 : (now.players[b] || 0) - (now.players[a] || 0))).slice(0, MAX);
+const queue = ids.filter((id) => (apps[id].detailAt || '') < jst || (apps[id].name && !('movie' in apps[id]) && !apps[id].na)).sort((a, b) => ((apps[a].detailAt || '') < (apps[b].detailAt || '') ? -1 : (apps[a].detailAt || '') > (apps[b].detailAt || '') ? 1 : (now.players[b] || 0) - (now.players[a] || 0))).slice(0, MAX);
 let got = 0;
 for (const id of queue) {
   const j = await get(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=jp&l=japanese`);
