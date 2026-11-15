@@ -50,3 +50,5 @@ footer{background:var(--head);color:#9FB0C0;font-size:12px;padding:20px 16px}foo
 .hls-alt{position:relative;display:block}.hls-alt img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}.hls-alt span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.75);color:#fff;font-weight:700;padding:10px 16px;border-radius:4px}
 .shots{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:6px 0 0}.shots img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover}
 @media(max-width:480px){.shots{grid-template-columns:repeat(4,1fr)}}
+.logo{white-space:nowrap}
+@media(max-width:480px){header nav{display:flex;gap:12px;overflow-x:auto;white-space:nowrap;font-size:13px}header nav a{white-space:nowrap}}
