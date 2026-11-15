@@ -44,3 +44,4 @@ footer{background:var(--head);color:#9FB0C0;font-size:12px;padding:20px 16px}foo
 .pkt{font-size:18px}
 .sum{font-size:16px;font-weight:700;line-height:1.7;margin:4px 0 14px;padding:10px 14px;border-left:5px solid currentColor;background:color-mix(in srgb,currentColor 6%,transparent)}
 .pc{margin:14px 0 0}.btn.sub{font-size:14px}.pr{font-size:10px;margin-left:6px;opacity:.7;border:1px solid;padding:0 3px}
+@media (prefers-color-scheme:dark){.jp.v{color:#0B1A12}}
