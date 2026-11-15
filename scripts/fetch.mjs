@@ -72,6 +72,9 @@ for (const id of queue) {
       genres: (x.genres || []).map((g) => g.description), dev: x.developers || [], pub: x.publishers || [],
       release: x.release_date?.date || '', coming: !!x.release_date?.coming_soon, age: x.required_age || 0,
       reviews: x.recommendations?.total || 0, detailAt: jst,
+      // 紹介動画（最初のトレーラー）とスクリーンショット。ファイルはSteamのサーバーにあるものを表示するだけ
+      movie: (() => { const m = (x.movies || []).find((v) => v.highlight) || (x.movies || [])[0]; if (!m) return null; return { name: m.name || '', thumb: m.thumbnail || '', mp4: m.mp4?.['480'] || m.mp4?.max || '', webm: m.webm?.['480'] || m.webm?.max || '', hls: m.hls_h264 || '', }; })(),
+      shots: (x.screenshots || []).slice(0, 4).map((v) => ({ t: v.path_thumbnail, f: v.path_full })),
     });
     // 価格の履歴（日ごと）
     if (apps[id].price) { apps[id].priceHist ||= {}; apps[id].priceHist[jst] = apps[id].price.now; }

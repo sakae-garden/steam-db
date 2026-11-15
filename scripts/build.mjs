@@ -39,6 +39,15 @@ const raku = (q) => { const u = `https://search.rakuten.co.jp/search/mall/${enco
 const gpuOf = (a) => { const t = strip(a.req?.rec || a.req?.min || ''); const src = a.req?.rec ? '推奨' : '最低'; const m = t.match(/(RTX|GTX)\s?-?\s?(\d{3,4})(\s?Ti|\s?SUPER)?|Radeon\s?RX\s?(\d{3,4})(\s?XT)?/i); return m ? m[0].replace(/\s+/g, ' ').replace(/^(rtx|gtx)/i, (x) => x.toUpperCase()).replace(/\brx\b/i, 'RX').trim() + '|' + src : ''; };
 const pcQuery = (g) => { const n = +((g.match(/\d{3,4}/) || [0])[0]); if (!g) return 'ゲーミングPC'; const top = /RTX/.test(g) ? (n >= 4080 && n < 5000) || n >= 5070 || n === 3090 : /RX/.test(g) ? n >= 7800 : false; if (top) return 'ゲーミングPC'; const hi = /RTX/.test(g) ? (n >= 3070 && n < 4000) || (n >= 4070 && n < 5000) || (n >= 5060) : /RX/.test(g) ? n >= 6800 : false; return `ゲーミングPC ${hi ? 'RTX 4070' : 'RTX 4060'}`; };
 // 推奨が上位クラスなら RTX 4070、それ以外は RTX 4060 を積んだPCを探す。4070を超える推奨なら型番なしで探す
+// 作品ページの冒頭：Steamの公式トレーラーがあれば動画、なければヘッダー画像。下にスクリーンショット
+function heroOf(a) {
+  const m = a.movie, shots = (a.shots || []).filter((x) => x.t);
+  const poster = esc(m?.thumb || a.header);
+  let media = `<img src="${esc(a.header)}" alt="${esc(a.name)}" width="460" height="215">`;
+  if (m && (m.mp4 || m.webm)) media = `<video controls muted playsinline preload="none" poster="${poster}" width="640" height="360" onplay="window.gtag&&gtag('event','trailer_play',{item_id:'${a.appid}'})">${m.webm ? `<source src="${esc(m.webm)}" type="video/webm">` : ''}${m.mp4 ? `<source src="${esc(m.mp4)}" type="video/mp4">` : ''}</video>`;
+  else if (m?.hls) media = `<video class="hls" controls muted playsinline preload="none" poster="${poster}" width="640" height="360" data-src="${esc(m.hls)}" data-store="https://store.steampowered.com/app/${a.appid}/"></video><script>(function(v){if(v.canPlayType('application/vnd.apple.mpegurl')){v.src=v.dataset.src}else{var l=document.createElement('a');l.href=v.dataset.store;l.target='_blank';l.rel='noopener';l.className='hls-alt';l.innerHTML='<img src="'+v.poster+'" alt=""><span>▶ Steamで紹介動画を見る</span>';v.replaceWith(l)}})(document.currentScript.previousElementSibling)</script>`;
+  return `<figure class="hero${m ? ' mv' : ''}">${media}${m ? `<figcaption>${esc(m.name || '紹介動画')}（Steamストアより）</figcaption>` : ''}</figure>${shots.length ? `<div class="shots">${shots.map((x) => `<a href="${esc(x.f)}" target="_blank" rel="noopener"><img src="${esc(x.t)}" alt="${esc(a.name)}のスクリーンショット" loading="lazy" width="150" height="84"></a>`).join('')}</div>` : ''}`;
+}
 const valid = Object.values(apps).filter((a) => a.name && !a.na && a.type === 'game');
 const byNow = [...valid].filter((a) => P(a) != null).sort((a, b) => P(b) - P(a));
 
@@ -74,7 +83,7 @@ for (const a of valid) {
   const p = P(a), pk = maxPeak(a), idx = days(a).length >= 1 && pk.v >= 30 && (a.age || 0) < 18, td = (peaks[a.appid] || {})[today], j = jp(a);
   const ph = Object.entries(a.priceHist || {}); const low = ph.length ? Math.min(...ph.map((x) => x[1])) : null;
   const body = `<article class="game">
-<figure class="hero"><img src="${esc(a.header)}" alt="${esc(a.name)}" width="460" height="215"></figure>
+${heroOf(a)}
 <p class="crumbs"><a href="/">トップ</a> › <a href="/ranking/">ランキング</a></p>
 <h1>${esc(a.name)}<small>同時接続数・セール価格・日本語対応・必要スペック</small></h1>
 <p class="sum">${(() => { const t = trend(a), lw = lowOf(a), parts = [];
