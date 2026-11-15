@@ -51,12 +51,14 @@ for (let i = 0; i < ids.length; i += 8) {
   await sleep(200);
 }
 console.log('players', done, '/', ids.length);
-// 古い記録は400日で捨てる
+// 古い記録は400日で捨てる。最大でも30人未満のゲームは60日分だけ残す（データの肥大を防ぐ）
+for (const id of Object.keys(peaks)) { const v = Object.values(peaks[id]); if (v.length && Math.max(...v) < 30) for (const d of Object.keys(peaks[id])) if (d < new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)) delete peaks[id][d]; }
 for (const id of Object.keys(peaks)) for (const d of Object.keys(peaks[id])) if (d < new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10)) delete peaks[id][d];
 
 // 3) ストア情報：未取得のものと、更新が古いもの（上位から最大 DETAIL_MAX 件）。1.6秒間隔（ストアの制限を守る）
-const MAX = +(process.env.DETAIL_MAX || 150);
-const queue = ids.sort((a, b) => (now.players[b] || 0) - (now.players[a] || 0)).filter((id) => !apps[id].name || (apps[id].detailAt || '') < jst).slice(0, MAX);
+const MAX = +(process.env.DETAIL_MAX || 300);
+// 未取得（detailAt なし）を先に、次に更新が古い順。取得できなかったもの（na）も detailAt で判定する
+const queue = ids.filter((id) => (apps[id].detailAt || '') < jst).sort((a, b) => ((apps[a].detailAt || '') < (apps[b].detailAt || '') ? -1 : (apps[a].detailAt || '') > (apps[b].detailAt || '') ? 1 : (now.players[b] || 0) - (now.players[a] || 0))).slice(0, MAX);
 let got = 0;
 for (const id of queue) {
   const j = await get(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=jp&l=japanese`);
