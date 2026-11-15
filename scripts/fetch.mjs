@@ -1,0 +1,70 @@
+#!/usr/bin/env node
+// Steamの公開API（GitHub Actions上で実行）
+//  - ISteamChartsService/GetMostPlayedGames：今もっとも遊ばれているゲーム上位（公式・キー不要）
+//  - ISteamUserStats/GetNumberOfCurrentPlayers：ゲームごとの同時接続数（公式・キー不要）
+//  - store appdetails：ストアの名称・価格・対応言語・必要スペック（日本円・日本語）
+// 保存：data/apps.json（ゲームの基本情報）、data/peaks.json（日ごとの最大同時接続数）、data/now.json（直近の同時接続数）
+import fs from 'node:fs';
+import path from 'node:path';
+const DATA = path.resolve('data');
+const UA = { 'User-Agent': 'steam-db (mminnie.com)' };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const read = (f, d) => (fs.existsSync(path.join(DATA, f)) ? JSON.parse(fs.readFileSync(path.join(DATA, f), 'utf8')) : d);
+const save = (f, v) => fs.writeFileSync(path.join(DATA, f), JSON.stringify(v));
+async function get(url, tries = 3) {
+  for (let i = 0; i < tries; i++) {
+    try { const r = await fetch(url, { headers: UA }); if (r.status === 429) { await sleep(60000); continue; } if (!r.ok) throw new Error(r.status); return await r.json(); }
+    catch (e) { if (i === tries - 1) { console.error('fail', url, e.message); return null; } await sleep(3000); }
+  }
+}
+const apps = read('apps.json', {});
+const peaks = read('peaks.json', {});
+const now = { at: new Date().toISOString(), players: {} };
+const jst = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+
+// 1) 上位100（毎回）
+const mp = await get('https://api.steampowered.com/ISteamChartsService/GetMostPlayedGames/v1/');
+const top = mp?.response?.ranks || [];
+for (const r of top) { apps[r.appid] ||= { appid: r.appid, added: jst }; apps[r.appid].mpRank = r.rank; apps[r.appid].mpAt = jst; }
+console.log('most played', top.length);
+
+// 2) 同時接続数（追跡中の全ゲーム。8並列）
+const ids = Object.keys(apps);
+let done = 0;
+for (let i = 0; i < ids.length; i += 8) {
+  await Promise.all(ids.slice(i, i + 8).map(async (id) => {
+    const j = await get(`https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${id}`);
+    const n = j?.response?.player_count;
+    if (typeof n === 'number') { now.players[id] = n; peaks[id] ||= {}; peaks[id][jst] = Math.max(peaks[id][jst] || 0, n); done++; }
+  }));
+  await sleep(200);
+}
+console.log('players', done, '/', ids.length);
+// 古い記録は400日で捨てる
+for (const id of Object.keys(peaks)) for (const d of Object.keys(peaks[id])) if (d < new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10)) delete peaks[id][d];
+
+// 3) ストア情報：未取得のものと、更新が古いもの（上位から最大 DETAIL_MAX 件）。1.6秒間隔（ストアの制限を守る）
+const MAX = +(process.env.DETAIL_MAX || 150);
+const queue = ids.sort((a, b) => (now.players[b] || 0) - (now.players[a] || 0)).filter((id) => !apps[id].name || (apps[id].detailAt || '') < jst).slice(0, MAX);
+let got = 0;
+for (const id of queue) {
+  const j = await get(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=jp&l=japanese`);
+  const d = j?.[id];
+  if (d?.success && d.data) {
+    const x = d.data;
+    Object.assign(apps[id], {
+      name: x.name, type: x.type, free: !!x.is_free, header: x.header_image, capsule: x.capsule_image,
+      price: x.price_overview ? { now: Math.round(x.price_overview.final / 100), base: Math.round(x.price_overview.initial / 100), off: x.price_overview.discount_percent } : null,
+      langs: x.supported_languages || '', req: { min: x.pc_requirements?.minimum || '', rec: x.pc_requirements?.recommended || '' },
+      genres: (x.genres || []).map((g) => g.description), dev: x.developers || [], pub: x.publishers || [],
+      release: x.release_date?.date || '', coming: !!x.release_date?.coming_soon, age: x.required_age || 0,
+      reviews: x.recommendations?.total || 0, detailAt: jst,
+    });
+    // 価格の履歴（日ごと）
+    if (apps[id].price) { apps[id].priceHist ||= {}; apps[id].priceHist[jst] = apps[id].price.now; }
+    got++;
+  } else if (d && !d.success) { apps[id].detailAt = jst; apps[id].na = true; }
+  await sleep(1600);
+}
+console.log('details', got, '/', queue.length);
+save('apps.json', apps); save('peaks.json', peaks); save('now.json', now);
