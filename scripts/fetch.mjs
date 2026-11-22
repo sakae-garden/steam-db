@@ -58,7 +58,9 @@ for (const id of Object.keys(peaks)) for (const d of Object.keys(peaks[id])) if 
 // 3) ストア情報：未取得のものと、更新が古いもの（上位から最大 DETAIL_MAX 件）。1.6秒間隔（ストアの制限を守る）
 const MAX = +(process.env.DETAIL_MAX || 300);
 // 未取得（detailAt なし）を先に、次に更新が古い順。取得できなかったもの（na）も detailAt で判定する
-const queue = ids.filter((id) => (apps[id].detailAt || '') < jst || (apps[id].name && !('desc' in apps[id]) && !apps[id].na)).sort((a, b) => (+!!('desc' in apps[a] || !apps[a].name) - +!!('desc' in apps[b] || !apps[b].name)) || ((apps[a].detailAt || '') < (apps[b].detailAt || '') ? -1 : (apps[a].detailAt || '') > (apps[b].detailAt || '') ? 1 : (now.players[b] || 0) - (now.players[a] || 0))).slice(0, MAX);
+// 優先順：まだ一度も取得していない新しいゲーム → 紹介文が未取得のもの → 残りは更新の古い順
+const rank = (id) => (!apps[id].name ? 0 : !('desc' in apps[id]) ? 1 : 2);
+const queue = ids.filter((id) => (apps[id].detailAt || '') < jst || (apps[id].name && !('desc' in apps[id]) && !apps[id].na)).sort((a, b) => (rank(a) - rank(b)) || ((apps[a].detailAt || '') < (apps[b].detailAt || '') ? -1 : (apps[a].detailAt || '') > (apps[b].detailAt || '') ? 1 : (now.players[b] || 0) - (now.players[a] || 0))).slice(0, MAX);
 let got = 0;
 for (const id of queue) {
   const j = await get(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=jp&l=japanese`);
@@ -73,7 +75,7 @@ for (const id of queue) {
       release: x.release_date?.date || '', coming: !!x.release_date?.coming_soon, age: x.required_age || 0,
       reviews: x.recommendations?.total || 0, detailAt: jst,
       // ストアの短い紹介文（日本語があれば日本語）。タグと文字参照を取り除く
-      desc: (x.short_description || '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(),
+      desc: (x.short_description || '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&reg;/g, '®').replace(/&trade;/g, '™').replace(/&copy;/g, '©').replace(/&hellip;/g, '…').replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/\s+/g, ' ').trim(),
       // 紹介動画（最初のトレーラー）とスクリーンショット。ファイルはSteamのサーバーにあるものを表示するだけ
       movie: (() => { const m = (x.movies || []).find((v) => v.highlight) || (x.movies || [])[0]; if (!m) return null; return { name: m.name || '', thumb: m.thumbnail || '', mp4: m.mp4?.['480'] || m.mp4?.max || '', webm: m.webm?.['480'] || m.webm?.max || '', hls: m.hls_h264 || '', }; })(),
       shots: (x.screenshots || []).slice(0, 4).map((v) => ({ t: v.path_thumbnail, f: v.path_full })),
