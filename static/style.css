@@ -58,3 +58,7 @@ footer{background:var(--head);color:#9FB0C0;font-size:12px;padding:20px 16px}foo
 @keyframes sl{0%{opacity:0}4%{opacity:1}25%{opacity:1}29%{opacity:0}100%{opacity:0}}
 @media(prefers-reduced-motion:reduce){.slides img{animation:none}.slides img:not(:first-child){display:none}}
 .sl-cap{position:absolute;left:0;bottom:0;padding:3px 10px;font-size:12px;background:rgba(0,0,0,.6);color:#fff}
+
+.about{margin:12px 0 4px;padding:12px 14px;border-left:3px solid currentColor;background:color-mix(in srgb,currentColor 5%,transparent)}
+.about p{margin:0;font-size:1rem;line-height:1.8}
+.about small{display:block;margin-top:6px;opacity:.7;font-size:.78rem}

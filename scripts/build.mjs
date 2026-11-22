@@ -86,6 +86,7 @@ for (const a of valid) {
   const ph = Object.entries(a.priceHist || {}); const low = ph.length ? Math.min(...ph.map((x) => x[1])) : null;
   const body = `<article class="game">
 ${heroOf(a)}
+${(() => { const d = a.desc || ''; if (!d) return ''; const ja = /[\u3040-\u30ff\u4e00-\u9fff]/.test(d); const g = (a.genres || []).slice(0, 3).join('・'); return `<div class="about"${ja ? '' : ' lang="en"'}><p>${esc(d)}</p><small>${g ? `ジャンル：${esc(g)}　` : ''}${ja ? 'Steamストアの紹介文より' : 'Steamストアの紹介文より（日本語の紹介文がないため英語のまま掲載）'}</small></div>`; })()}
 <p class="crumbs"><a href="/">トップ</a> › <a href="/ranking/">ランキング</a></p>
 <h1>${esc(a.name)}<small>同時接続数・セール価格・日本語対応・必要スペック</small></h1>
 <p class="sum">${(() => { const t = trend(a), lw = lowOf(a), parts = [];
