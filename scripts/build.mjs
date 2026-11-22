@@ -80,9 +80,11 @@ const card = (a, sub) => `<a class="row" href="/game/${a.appid}/"><img src="${es
 const jpBadge = (a) => { const j = jp(a); return j.voice ? '<i class="jp v">日本語音声</i>' : j.ui ? '<i class="jp">日本語</i>' : ''; };
 const priceTxt = (a) => (a.free ? '無料' : a.price ? (a.price.off ? `<s>¥${nf(a.price.base)}</s> <em>¥${nf(a.price.now)}</em> <i class="off">-${a.price.off}%</i>` : `¥${nf(a.price.now)}`) : '');
 
+// 成人向け：年齢制限18歳以上、またはSteamで「成人向けの性的内容」「頻繁な裸・性的表現」と申告されたもの（広告なし・検索に出さない）
+const adult = (a) => (a.age || 0) >= 18 || (a.cd || []).some((x) => x === 3 || x === 4);
 // ゲームページ
 for (const a of valid) {
-  const p = P(a), pk = maxPeak(a), idx = days(a).length >= 1 && pk.v >= 30 && (a.age || 0) < 18, td = (peaks[a.appid] || {})[today], j = jp(a);
+  const p = P(a), pk = maxPeak(a), idx = days(a).length >= 1 && pk.v >= 30 && !adult(a), td = (peaks[a.appid] || {})[today], j = jp(a);
   const ph = Object.entries(a.priceHist || {}); const low = ph.length ? Math.min(...ph.map((x) => x[1])) : null;
   const body = `<article class="game">
 ${heroOf(a)}
@@ -102,7 +104,7 @@ ${chart(a)}
 <section class="box"><h2>基本情報</h2><ul class="kv"><li><span>ジャンル</span><b>${esc(a.genres.join('・') || '—')}</b></li><li><span>開発</span><b>${esc(a.dev.join('、') || '—')}</b></li><li><span>発売</span><b>${esc(a.pub.join('、') || '—')}</b></li><li><span>発売日</span><b>${esc(a.release || '—')}</b></li></ul></section>
 <p class="note">最終更新：${esc(now.at ? new Date(new Date(now.at).getTime() + 9 * 3600e3).toISOString().slice(0, 16).replace('T', ' ') : today)}（3時間ごとに自動更新）</p>
 </article>`;
-  write(`/game/${a.appid}/`, layout({ title: `${a.name}の同時接続数・セール価格・日本語対応`, desc: `${a.name}の今の同時接続数${p != null ? `（${nf(p)}人）` : ''}、日ごとの推移、Steamでの価格とセール、日本語対応、必要スペックをまとめています。`, path: `/game/${a.appid}/`, body, img: a.header, index: idx, ads: (a.age || 0) < 18 }), idx);
+  write(`/game/${a.appid}/`, layout({ title: `${a.name}の同時接続数・セール価格・日本語対応`, desc: `${a.name}の今の同時接続数${p != null ? `（${nf(p)}人）` : ''}、日ごとの推移、Steamでの価格とセール、日本語対応、必要スペックをまとめています。`, path: `/game/${a.appid}/`, body, img: a.header, index: idx, ads: !adult(a) }), idx);
 }
 
 // トップ
@@ -116,7 +118,7 @@ ${sale.length ? `<section><h2>セール中の人気作</h2><ul class="rank">${sa
   write('/', layout({ title: 'Steamの同時接続数ランキング・セール・日本語対応', desc: 'Steamのゲームの同時接続数（今プレイしている人数）ランキングを3時間ごとに更新。日ごとの推移、セール価格、日本語対応、必要スペックもまとめています。', path: '/', body, img: top[0]?.header }));
 }
 // ランキング・セール・日本語対応
-const listPage = (p, title, desc, h1, list, sub) => write(p, layout({ title, desc, path: p, body: `<section class="intro sm"><div class="mosaic">${list.slice(0, 6).map((a) => `<a href="/game/${a.appid}/"><img src="${esc(a.header)}" alt="${esc(a.name)}"></a>`).join('')}</div><h1>${h1}</h1></section><ol class="rank">${list.map((a) => `<li>${card(a, sub(a))}</li>`).join('')}</ol>`, img: list[0]?.header }));
+const listPage = (p, title, desc, h1, list, sub) => write(p, layout({ title, desc, path: p, body: `<section class="intro sm"><div class="mosaic">${list.filter((a) => !adult(a)).slice(0, 6).map((a) => `<a href="/game/${a.appid}/"><img src="${esc(a.header)}" alt="${esc(a.name)}"></a>`).join('')}</div><h1>${h1}</h1></section><ol class="rank">${list.map((a) => `<li>${card(a, sub(a))}</li>`).join('')}</ol>`, img: list[0]?.header }));
 listPage('/ranking/', 'Steam 同時接続数ランキング', 'Steamの同時接続数（今プレイ中の人数）が多いゲームのランキング。3時間ごとに更新。', 'Steam 同時接続数ランキング', byNow.slice(0, 200), (a) => `<em class="n">${nf(P(a))}</em>人がプレイ中 ${jpBadge(a)}`);
 listPage('/japanese/', '日本語対応のSteam人気ゲーム', '日本語に対応しているSteamのゲームを、同時接続数が多い順に並べています。', '日本語対応の人気ゲーム', byNow.filter((a) => jp(a).ui).slice(0, 200), (a) => `<em class="n">${nf(P(a))}</em>人がプレイ中 ${jpBadge(a)}`);
 listPage('/sale/', 'Steamセール中の人気ゲーム', 'Steamで今セール中のゲームを、同時接続数が多い順に並べています。割引率と日本円の価格つき。', 'セール中の人気ゲーム', valid.filter((a) => a.price?.off).sort((a, b) => (P(b) || 0) - (P(a) || 0)).slice(0, 200), (a) => `${priceTxt(a)} ${jpBadge(a)}`);

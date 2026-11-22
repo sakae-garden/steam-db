@@ -59,8 +59,8 @@ for (const id of Object.keys(peaks)) for (const d of Object.keys(peaks[id])) if 
 const MAX = +(process.env.DETAIL_MAX || 300);
 // 未取得（detailAt なし）を先に、次に更新が古い順。取得できなかったもの（na）も detailAt で判定する
 // 優先順：まだ一度も取得していない新しいゲーム → 紹介文が未取得のもの → 残りは更新の古い順
-const rank = (id) => (!apps[id].name ? 0 : !('desc' in apps[id]) ? 1 : 2);
-const queue = ids.filter((id) => (apps[id].detailAt || '') < jst || (apps[id].name && !('desc' in apps[id]) && !apps[id].na)).sort((a, b) => (rank(a) - rank(b)) || ((apps[a].detailAt || '') < (apps[b].detailAt || '') ? -1 : (apps[a].detailAt || '') > (apps[b].detailAt || '') ? 1 : (now.players[b] || 0) - (now.players[a] || 0))).slice(0, MAX);
+const rank = (id) => (!apps[id].name ? 0 : !('cd' in apps[id]) ? 1 : 2);
+const queue = ids.filter((id) => (apps[id].detailAt || '') < jst || (apps[id].name && !('cd' in apps[id]) && !apps[id].na)).sort((a, b) => (rank(a) - rank(b)) || ((apps[a].detailAt || '') < (apps[b].detailAt || '') ? -1 : (apps[a].detailAt || '') > (apps[b].detailAt || '') ? 1 : (now.players[b] || 0) - (now.players[a] || 0))).slice(0, MAX);
 let got = 0;
 for (const id of queue) {
   const j = await get(`https://store.steampowered.com/api/appdetails?appids=${id}&cc=jp&l=japanese`);
@@ -74,6 +74,8 @@ for (const id of queue) {
       genres: (x.genres || []).map((g) => g.description), dev: x.developers || [], pub: x.publishers || [],
       release: x.release_date?.date || '', coming: !!x.release_date?.coming_soon, age: x.required_age || 0,
       reviews: x.recommendations?.total || 0, detailAt: jst,
+      // 成人向けの内容の申告（Steamの content_descriptors。1:一部に裸・性的表現 2:暴力 3:成人向けの性的内容 4:頻繁な裸・性的表現 5:一般的な成人向け）
+      cd: (x.content_descriptors?.ids || []).map(Number), cdNote: x.content_descriptors?.notes || '',
       // ストアの短い紹介文（日本語があれば日本語）。タグと文字参照を取り除く
       desc: (x.short_description || '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&reg;/g, '®').replace(/&trade;/g, '™').replace(/&copy;/g, '©').replace(/&hellip;/g, '…').replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/\s+/g, ' ').trim(),
       // 紹介動画（最初のトレーラー）とスクリーンショット。ファイルはSteamのサーバーにあるものを表示するだけ
