@@ -6,6 +6,7 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const DIST = path.join(ROOT, 'dist');
 const SITE = { name: '同接ナウ', url: 'https://steam.mminnie.com', operator: 'mminnie.com 編集部', contact: 'https://docs.google.com/forms/d/e/1FAIpQLSchNBjp8QQ7mbNG5nNGSI6-ikkx00QRZFPM8st0B6WLA16alQ/viewform', ga: 'G-XL7DW884H3', ads: 'ca-pub-2361768568271631' };
 const read = (f, d) => (fs.existsSync(path.join(ROOT, 'data', f)) ? JSON.parse(fs.readFileSync(path.join(ROOT, 'data', f), 'utf8')) : d);
+const summary = read('summary.json', {}); // ゲームの内容の短い説明（編集部が書いたもの）
 const apps = read('apps.json', {}), peaks = read('peaks.json', {}), now = read('now.json', { players: {} });
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const strip = (h) => String(h || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/li>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
@@ -88,7 +89,7 @@ for (const a of valid) {
   const ph = Object.entries(a.priceHist || {}); const low = ph.length ? Math.min(...ph.map((x) => x[1])) : null;
   const body = `<article class="game">
 ${heroOf(a)}
-${(() => { const d = a.desc || ''; if (!d) return ''; const ja = /[\u3040-\u30ff]/.test(d); const g = (a.genres || []).slice(0, 3).join('・'); return `<div class="about"><p>${esc(d)}</p><small>${g ? `ジャンル：${esc(g)}　` : ''}${ja ? 'Steamストアの紹介文より' : 'Steamストアの紹介文より（日本語の紹介文がないため原文のまま掲載）'}</small></div>`; })()}
+${(() => { const sm = summary[a.appid]; if (!sm) return ''; const g = (a.genres || []).slice(0, 3).join('・'); return `<div class="about"><h2>どんなゲーム？</h2><p>${esc(sm)}</p>${g ? `<small>ジャンル：${esc(g)}</small>` : ''}</div>`; })()}
 <p class="crumbs"><a href="/">トップ</a> › <a href="/ranking/">ランキング</a></p>
 <h1>${esc(a.name)}<small>同時接続数・セール価格・日本語対応・必要スペック</small></h1>
 <p class="sum">${(() => { const t = trend(a), lw = lowOf(a), parts = [];
