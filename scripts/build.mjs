@@ -85,7 +85,7 @@ const priceTxt = (a) => (a.free ? '無料' : a.price ? (a.price.off ? `<s>¥${nf
 const adult = (a) => (a.age || 0) >= 18 || (a.cd || []).some((x) => x === 3 || x === 4);
 // ゲームページ
 for (const a of valid) {
-  const p = P(a), pk = maxPeak(a), idx = days(a).length >= 1 && pk.v >= 30 && !adult(a), td = (peaks[a.appid] || {})[today], j = jp(a);
+  const p = P(a), pk = maxPeak(a), idx = days(a).length >= 1 && pk.v >= 30 && !adult(a) && !!summary[a.appid], td = (peaks[a.appid] || {})[today], j = jp(a);
   const ph = Object.entries(a.priceHist || {}); const low = ph.length ? Math.min(...ph.map((x) => x[1])) : null;
   const body = `<article class="game">
 ${heroOf(a)}
