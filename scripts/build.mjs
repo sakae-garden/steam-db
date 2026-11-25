@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const DIST = path.join(ROOT, 'dist');
-const SITE = { name: '同接ナウ', url: 'https://steam.mminnie.com', operator: 'mminnie.com 編集部', contact: 'https://docs.google.com/forms/d/e/1FAIpQLSchNBjp8QQ7mbNG5nNGSI6-ikkx00QRZFPM8st0B6WLA16alQ/viewform', ga: 'G-XL7DW884H3', ads: 'ca-pub-2361768568271631' };
+const SITE = { name: '同接ナウ', url: 'https://steam.mminnie.com', operator: '同接ナウ編集部', contact: 'https://docs.google.com/forms/d/e/1FAIpQLSchNBjp8QQ7mbNG5nNGSI6-ikkx00QRZFPM8st0B6WLA16alQ/viewform', ga: 'G-XL7DW884H3', ads: 'ca-pub-2361768568271631' };
 const read = (f, d) => (fs.existsSync(path.join(ROOT, 'data', f)) ? JSON.parse(fs.readFileSync(path.join(ROOT, 'data', f), 'utf8')) : d);
 const summary = read('summary.json', {}); // ゲームの内容の短い説明（編集部が書いたもの）
 const apps = read('apps.json', {}), peaks = read('peaks.json', {}), now = read('now.json', { players: {} });
@@ -131,7 +131,7 @@ listPage('/sale/', 'Steamセール中の人気ゲーム', 'Steamで今セール�
   else listPage('/rising/', 'Steamで人数が伸びているゲーム', 'Steamで同時接続数（日ごとの最大）が直近の平均より伸びているゲーム。毎日更新。', '人数が伸びているゲーム', rise.map((x) => x.a), (a) => { const x = rise.find((y) => y.a === a); return `昨日の最大 <em class="n">${nf(x.last)}</em>人（ふだんの${x.r.toFixed(1)}倍）${jpBadge(a)}`; });
 }
 // 固定ページ
-write('/about/', layout({ title: '運営者情報', desc: '運営者情報', path: '/about/', body: `<article class="doc"><h1>運営者情報</h1><p>サイト名：${SITE.name}<br>運営：${SITE.operator}</p><h2>このサイトについて</h2><p>Steamの公開データ（同時接続数・ストア情報）を定期的に取得し、日本語で見やすく集計しています。同時接続数は当サイトが取得した時点の値で、記録は集計を始めた日からたまっていきます。</p><p><a href="${SITE.contact}" target="_blank" rel="noopener">お問い合わせフォーム</a></p></article>` }));
+write('/about/', layout({ title: '運営者情報', desc: '運営者情報', path: '/about/', body: `<article class="doc"><h1>運営者情報</h1><p>サイト名：${SITE.name}<br>運営：${SITE.operator}<br>運営責任者：杉 栄志郎</p><h2>このサイトについて</h2><p>Steamの公開データ（同時接続数・ストア情報）を定期的に取得し、日本語で見やすく集計しています。同時接続数は当サイトが取得した時点の値で、記録は集計を始めた日からたまっていきます。</p><p><a href="${SITE.contact}" target="_blank" rel="noopener">お問い合わせフォーム</a></p></article>` }));
 write('/privacy/', layout({ title: 'プライバシーポリシー', desc: 'プライバシーポリシー', path: '/privacy/', body: `<article class="doc"><h1>プライバシーポリシー</h1><h2>広告について</h2><p>当サイトは第三者配信の広告サービス「Google アドセンス」を利用しています。広告配信事業者は、利用者の興味に応じた広告を表示するためにCookieを使用することがあります。詳しくは<a href="https://policies.google.com/technologies/ads?hl=ja" target="_blank" rel="noopener">Googleのポリシーと規約</a>をご覧ください。</p><h2>アクセス解析について</h2><p>Googleアナリティクスを利用しています。データは匿名で収集され、個人を特定するものではありません。</p><h2>免責事項</h2><p>掲載情報は取得時点のものです。価格・対応言語などの最新情報はSteamストアでご確認ください。</p><p>制定：${today}　${SITE.operator}</p></article>` }));
 // 静的ファイル・サイトマップ
 for (const f of fs.readdirSync(path.join(ROOT, 'static'))) fs.cpSync(path.join(ROOT, 'static', f), path.join(DIST, f), { recursive: true });
